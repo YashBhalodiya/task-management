@@ -1,5 +1,6 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import ssl
+import pg8000.dbapi
+from urllib.parse import urlparse
 from flask import current_app, g
 
 def get_db_conn():
@@ -7,8 +8,19 @@ def get_db_conn():
         db_url = current_app.config.get("DATABASE_URL")
         if not db_url:
             raise RuntimeError("DATABASE_URL is not configured in the application config.")
-        g.db_conn = psycopg2.connect(db_url)
         
+        parsed = urlparse(db_url)
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        g.db_conn = pg8000.dbapi.connect(
+            user=parsed.username,
+            password=parsed.password,
+            host=parsed.hostname,
+            port=parsed.port or 5432,
+            database=parsed.path[1:],
+            ssl_context=ssl_context
+        )
     return g.db_conn
 
 def close_db_conn(exception=None):
@@ -26,27 +38,49 @@ def close_db_conn(exception=None):
 
 def query_one(query, params=None):
     conn = get_db_conn()
-    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+    cursor = conn.cursor()
+    try:
         cursor.execute(query, params or ())
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        if not row:
+            return None
+        columns = [desc[0] for desc in cursor.description]
+        return dict(zip(columns, row))
+    finally:
+        cursor.close()
 
 def query_all(query, params=None):
     conn = get_db_conn()
-    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+    cursor = conn.cursor()
+    try:
         cursor.execute(query, params or ())
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        return [dict(zip(columns, row)) for row in rows]
+    finally:
+        cursor.close()
 
 def execute_write(query, params=None):
     conn = get_db_conn()
-    with conn.cursor() as cursor:
+    cursor = conn.cursor()
+    try:
         cursor.execute(query, params or ())
         return cursor.rowcount
+    finally:
+        cursor.close()
 
 def execute_write_returning(query, params=None):
     conn = get_db_conn()
-    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+    cursor = conn.cursor()
+    try:
         cursor.execute(query, params or ())
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        if not row:
+            return None
+        columns = [desc[0] for desc in cursor.description]
+        return dict(zip(columns, row))
+    finally:
+        cursor.close()
 
 def init_db(app):
     app.teardown_appcontext(close_db_conn)
