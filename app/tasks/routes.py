@@ -63,6 +63,19 @@ def create_task():
     )
     
     task = query_one(f"{TASK_SELECT_QUERY} WHERE t.id = %s", (row["id"],))
+
+    if assigned_to:
+        subject = f"New Task Assigned: {task['title']}"
+        body = f"""
+        <h3>Hello {task['assignee_name']},</h3>
+        <p>You have been assigned a new task by <b>{task['creator_name']}</b>.</p>
+        <p><b>Task Title:</b> {task['title']}</p>
+        <p><b>Description:</b> {task['description'] or 'No description provided.'}</p>
+        <p>Please log in to review it.</p>
+        """
+        from app.utils.email import send_email
+        send_email(task['assignee_email'], subject, body)
+
     return jsonify(format_task(task)), 201
 
 @tasks_bp.route("/", methods=["GET"])
@@ -89,7 +102,18 @@ def update_task_status(task_id):
     if not status or status not in ["pending", "completed"]:
         return jsonify({"error": "Invalid or missing status. Allowed values: pending, completed"}), 400
         
-    task = query_one("SELECT id, created_by, assigned_to, status FROM tasks WHERE id = %s", (task_id,))
+    task = query_one(
+        """
+        SELECT t.id, t.title, t.status, t.created_by, t.assigned_to,
+               c.email AS creator_email, c.name AS creator_name,
+               a.name AS assignee_name
+        FROM tasks t
+        JOIN users c ON t.created_by = c.id
+        LEFT JOIN users a ON t.assigned_to = a.id
+        WHERE t.id = %s
+        """,
+        (task_id,)
+    )
     if not task:
         return jsonify({"error": "Task not found"}), 404
         
@@ -101,6 +125,16 @@ def update_task_status(task_id):
         (status, task_id)
     )
     
+    if status == "completed" and task["status"] != "completed":
+        subject = f"Task Completed: {task['title']}"
+        assignee_name = task['assignee_name'] or "Someone"
+        body = f"""
+        <h3>Hello {task['creator_name']},</h3>
+        <p>Your task <b>{task['title']}</b> has been marked as <b>completed</b> by <b>{assignee_name}</b>.</p>
+        """
+        from app.utils.email import send_email
+        send_email(task['creator_email'], subject, body)
+
     updated_task = query_one(f"{TASK_SELECT_QUERY} WHERE t.id = %s", (task_id,))
     return jsonify(format_task(updated_task)), 200
 
