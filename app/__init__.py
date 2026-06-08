@@ -7,6 +7,10 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     CORS(app)
 
+    # db
+    from app.utils.db import init_db
+    init_db(app)
+
     @app.route("/api/health", methods=["GET"])
     def health_check():
         return jsonify({
