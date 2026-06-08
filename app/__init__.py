@@ -18,6 +18,9 @@ def create_app(config_class=Config):
     from app.users import users_bp
     app.register_blueprint(users_bp, url_prefix="/api/users")
 
+    from app.tasks import tasks_bp
+    app.register_blueprint(tasks_bp, url_prefix="/api/tasks")
+
     @app.route("/api/health", methods=["GET"])
     def health_check():
         return jsonify({
