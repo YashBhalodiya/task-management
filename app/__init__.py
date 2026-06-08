@@ -11,6 +11,10 @@ def create_app(config_class=Config):
     from app.utils.db import init_db
     init_db(app)
 
+    # register blueprints
+    from app.auth import auth_bp
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+
     @app.route("/api/health", methods=["GET"])
     def health_check():
         return jsonify({
