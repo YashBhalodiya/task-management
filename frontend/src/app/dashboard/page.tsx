@@ -5,6 +5,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import DashboardNavbar from '@/components/DashboardNavbar';
 import TaskStats from '@/features/tasks/components/TaskStats';
 import TaskCard from '@/features/tasks/components/TaskCard';
+import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
 import { getTasks } from '@/services/tasks';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, ChevronDown, ClipboardList, AlertCircle, RefreshCw } from 'lucide-react';
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // React Query fetch for all tasks
   const { data, isLoading, isError, refetch } = useQuery<Task[]>({
@@ -64,6 +66,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <button
+            onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-100 hover:bg-blue-700 transition duration-150 ease-in-out shrink-0 cursor-pointer"
           >
             <Plus className="h-4.5 w-4.5" />
@@ -93,7 +96,7 @@ export default function DashboardPage() {
                   placeholder="Search tasks..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2 text-sm text-slate-905 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition duration-150 ease-in-out"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition duration-150 ease-in-out"
                 />
               </div>
 
@@ -185,6 +188,12 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Create Task Modal Dialog */}
+      <CreateTaskModal 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 }
