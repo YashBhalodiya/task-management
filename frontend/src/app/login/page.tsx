@@ -5,6 +5,7 @@ import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '@/providers/AuthProvider';
 import { loginWithGoogle } from '@/services/auth';
 import { CheckSquare, AlertCircle, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -23,10 +24,13 @@ export default function LoginPage() {
     try {
       const data = await loginWithGoogle(credentialResponse.credential);
       login(data.token, data.user);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Google auth error:', err);
-      const backendError = err.response?.data?.error;
-      setError(backendError || 'Authentication failed. Please check your credentials or try again.');
+      let backendError = 'Authentication failed. Please check your credentials or try again.';
+      if (axios.isAxiosError(err) && err.response?.data?.error) {
+        backendError = err.response.data.error;
+      }
+      setError(backendError);
       setIsSubmitting(false);
     }
   };
@@ -75,7 +79,6 @@ export default function LoginPage() {
                   <GoogleLogin
                     onSuccess={handleGoogleSuccess}
                     onError={handleGoogleError}
-                    useOneTap
                     shape="pill"
                     theme="outline"
                     size="large"

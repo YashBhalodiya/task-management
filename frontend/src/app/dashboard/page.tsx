@@ -6,16 +6,26 @@ import DashboardNavbar from '@/components/DashboardNavbar';
 import TaskStats from '@/features/tasks/components/TaskStats';
 import TaskCard from '@/features/tasks/components/TaskCard';
 import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
-import { getTasks } from '@/services/tasks';
-import { useQuery } from '@tanstack/react-query';
+import { getTasks, updateTaskStatus, deleteTask } from '@/services/tasks';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, ChevronDown, ClipboardList, AlertCircle, RefreshCw } from 'lucide-react';
 import { Task } from '@/types';
+import axios from 'axios';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const queryClient = useQueryClient();
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => {
+      setNotification(null);
+    }, 4000);
+  };
 
   // React Query fetch for all tasks
   const { data, isLoading, isError, refetch } = useQuery<Task[]>({
@@ -39,13 +49,46 @@ export default function DashboardPage() {
     return matchesSearch && matchesFilter;
   });
 
-  // Placeholder actions (to be fully integrated with mutations in Phase 6)
+  // Task Status Toggle Mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: updateTaskStatus,
+    onSuccess: (updatedTask) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      const verb = updatedTask.status === 'completed' ? 'completed' : 'reopened';
+      showNotification('success', `Task marked as ${verb}!`);
+    },
+    onError: (err) => {
+      const message = axios.isAxiosError(err) && err.response?.data?.error
+        ? err.response.data.error
+        : 'Failed to update task status.';
+      showNotification('error', message);
+    },
+  });
+
+  // Task Delete Mutation
+  const deleteTaskMutation = useMutation({
+    mutationFn: deleteTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      showNotification('success', 'Task deleted successfully.');
+    },
+    onError: (err) => {
+      const message = axios.isAxiosError(err) && err.response?.data?.error
+        ? err.response.data.error
+        : 'Failed to delete task.';
+      showNotification('error', message);
+    },
+  });
+
   const handleStatusToggle = (task: Task) => {
-    console.log('Status toggle requested for task:', task);
+    const nextStatus = task.status === 'pending' ? 'completed' : 'pending';
+    toggleStatusMutation.mutate({ taskId: task.id, status: nextStatus });
   };
 
   const handleDeleteTask = (taskId: number) => {
-    console.log('Delete requested for task ID:', taskId);
+    if (confirm('Are you sure you want to delete this task?')) {
+      deleteTaskMutation.mutate(taskId);
+    }
   };
 
   return (
@@ -103,7 +146,7 @@ export default function DashboardPage() {
               <div className="relative sm:w-44">
                 <select
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value as any)}
+                  onChange={(e) => setFilter(e.target.value as 'all' | 'pending' | 'completed')}
                   className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 py-2 text-sm text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition duration-150 ease-in-out cursor-pointer"
                 >
                   <option value="all">All Statuses</option>
@@ -193,7 +236,16 @@ export default function DashboardPage() {
       <CreateTaskModal 
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => showNotification('success', 'Task created successfully!')}
       />
+
+      {/* Floating Toast Notification */}
+      {notification && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-xl border bg-white px-4 py-3 shadow-lg animate-slide-up max-w-sm border-slate-100">
+          <div className={`h-2.5 w-2.5 rounded-full ${notification.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+          <span className="text-xs font-semibold text-slate-800">{notification.message}</span>
+        </div>
+      )}
     </div>
   );
 }

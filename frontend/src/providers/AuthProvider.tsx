@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (token && storedUser) {
       try {
         setUser(JSON.parse(storedUser));
-      } catch (e) {
+      } catch {
         // Clear corrupt data
         localStorage.removeItem('task_manager_token');
         localStorage.removeItem('task_manager_user');

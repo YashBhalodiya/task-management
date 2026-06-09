@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers } from '@/services/users';
 import { createTask, CreateTaskInput } from '@/services/tasks';
 import { X, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const createTaskSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
@@ -20,9 +21,10 @@ type CreateTaskFormValues = z.infer<typeof createTaskSchema>;
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export default function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProps) {
+export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTaskModalProps) {
   const queryClient = useQueryClient();
 
   // Reset form when modal opens/closes
@@ -59,6 +61,7 @@ export default function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProp
     onSuccess: () => {
       // Invalidate tasks query to trigger fresh list reload
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      onSuccess?.();
       onClose();
     },
   });
@@ -100,7 +103,9 @@ export default function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProp
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
           {mutation.isError && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-650 border border-red-100 text-red-600">
-              { (mutation.error as any)?.response?.data?.error || 'Failed to create task. Please try again.' }
+              { axios.isAxiosError(mutation.error) && mutation.error.response?.data?.error
+                ? mutation.error.response.data.error
+                : 'Failed to create task. Please try again.' }
             </div>
           )}
 
