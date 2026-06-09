@@ -4,12 +4,47 @@ import React, { useState } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import DashboardNavbar from '@/components/DashboardNavbar';
 import TaskStats from '@/features/tasks/components/TaskStats';
-import { Plus, Search, ChevronDown } from 'lucide-react';
+import TaskCard from '@/features/tasks/components/TaskCard';
+import { getTasks } from '@/services/tasks';
+import { useQuery } from '@tanstack/react-query';
+import { Plus, Search, ChevronDown, ClipboardList, AlertCircle, RefreshCw } from 'lucide-react';
+import { Task } from '@/types';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
+
+  // React Query fetch for all tasks
+  const { data, isLoading, isError, refetch } = useQuery<Task[]>({
+    queryKey: ['tasks'],
+    queryFn: getTasks,
+  });
+
+  const tasks = data || [];
+
+  // Compute stats dynamically from the fetched task list
+  const totalTasks = tasks.length;
+  const pendingTasks = tasks.filter((t) => t.status === 'pending').length;
+  const completedTasks = tasks.filter((t) => t.status === 'completed').length;
+
+  // Filter and search tasks client-side
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch =
+      task.title.toLowerCase().includes(search.toLowerCase()) ||
+      (task.description || '').toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === 'all' ? true : task.status === filter;
+    return matchesSearch && matchesFilter;
+  });
+
+  // Placeholder actions (to be fully integrated with mutations in Phase 6)
+  const handleStatusToggle = (task: Task) => {
+    console.log('Status toggle requested for task:', task);
+  };
+
+  const handleDeleteTask = (taskId: number) => {
+    console.log('Delete requested for task ID:', taskId);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -29,7 +64,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-100 hover:bg-blue-700 transition duration-155 ease-in-out shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-100 hover:bg-blue-700 transition duration-150 ease-in-out shrink-0 cursor-pointer"
           >
             <Plus className="h-4.5 w-4.5" />
             Create Task
@@ -37,7 +72,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Statistics Cards */}
-        <TaskStats total={0} pending={0} completed={0} isLoading={true} />
+        <TaskStats
+          total={totalTasks}
+          pending={pendingTasks}
+          completed={completedTasks}
+          isLoading={isLoading}
+        />
 
         {/* Tasks Section Header */}
         <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-6">
@@ -47,13 +87,13 @@ export default function DashboardPage() {
             {/* Search & Filter Bar */}
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-450" />
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search tasks..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition duration-150 ease-in-out"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2 text-sm text-slate-905 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none transition duration-150 ease-in-out"
                 />
               </div>
 
@@ -74,29 +114,75 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Task Grid Loading Placeholder */}
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="border border-slate-105 rounded-2xl p-5 space-y-4 bg-slate-50/10 border-slate-100 animate-pulse">
-                <div className="flex justify-between items-start">
-                  <div className="h-6 w-20 bg-slate-100 rounded-lg" />
-                  <div className="h-5 w-16 bg-slate-100 rounded-full" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-5 w-2/3 bg-slate-100 rounded" />
-                  <div className="h-4 w-full bg-slate-100 rounded" />
-                  <div className="h-4 w-5/6 bg-slate-100 rounded" />
-                </div>
-                <div className="border-t border-slate-100 pt-4 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 bg-slate-100 rounded-full" />
-                    <div className="h-4 w-24 bg-slate-100 rounded" />
+          {/* Task Board Body */}
+          {isLoading ? (
+            /* Loading State Skeleton Grid */
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="border border-slate-100 rounded-2xl p-5 space-y-4 bg-slate-50/10 animate-pulse">
+                  <div className="flex justify-between items-start">
+                    <div className="h-6 w-20 bg-slate-100 rounded-lg" />
+                    <div className="h-5 w-16 bg-slate-100 rounded-full" />
                   </div>
-                  <div className="h-4 w-12 bg-slate-100 rounded" />
+                  <div className="space-y-2">
+                    <div className="h-5 w-2/3 bg-slate-100 rounded" />
+                    <div className="h-4 w-full bg-slate-100 rounded" />
+                    <div className="h-4 w-5/6 bg-slate-100 rounded" />
+                  </div>
+                  <div className="border-t border-slate-100 pt-4 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 bg-slate-100 rounded-full" />
+                      <div className="h-4 w-24 bg-slate-100 rounded" />
+                    </div>
+                    <div className="h-4 w-12 bg-slate-100 rounded" />
+                  </div>
                 </div>
+              ))}
+            </div>
+          ) : isError ? (
+            /* Error State Layout */
+            <div className="flex flex-col items-center justify-center py-12 px-4 rounded-xl border border-red-100 bg-red-50/30 text-center space-y-3">
+              <AlertCircle className="h-10 w-10 text-red-550 text-red-500" />
+              <h3 className="text-base font-bold text-slate-900">Failed to load tasks</h3>
+              <p className="text-sm text-slate-500 max-w-sm">
+                There was a problem communicating with the backend server. Please make sure the service is running.
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-xs cursor-pointer transition duration-150"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Retry Connection
+              </button>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            /* Empty State Layout */
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center space-y-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 border border-slate-100">
+                <ClipboardList className="h-8 w-8" />
               </div>
-            ))}
-          </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">No tasks found</h3>
+                <p className="text-sm text-slate-500 max-w-xs leading-relaxed">
+                  {tasks.length === 0 
+                    ? "Your task board is empty. Click 'Create Task' to add your first delegation!"
+                    : "No tasks match your current search queries or filters. Try adjusting them."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Active Task Cards Grid */
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {filteredTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onStatusToggle={handleStatusToggle}
+                  onDelete={handleDeleteTask}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
