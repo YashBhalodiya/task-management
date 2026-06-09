@@ -46,16 +46,19 @@ graph TD
 
 ```
 d:\Hair Drama Assigment/
-├── app/                      # Flask Backend Source Code
-│   ├── auth/                 # Google verification and JWT signing routes
-│   ├── tasks/                # Tasks routing, creation, completion, deletion
-│   ├── users/                # Team member list database routing
-│   ├── utils/                # DB clients, auth helpers, SMTP email engines
-│   └── __init__.py           # Flask app initializer and CORS rules
-├── db/                       # Database Initializers
-│   ├── schema.sql            # PostgreSQL table and index definitions
-│   └── setup.py              # Connection test script for database initialization
-├── run.py                    # Local Flask server entry point (port 5000)
+├── backend/                  # Flask Backend Subdirectory
+│   ├── app/                  # Flask Backend Source Code
+│   │   ├── auth/             # Google verification and JWT signing routes
+│   │   ├── tasks/            # Tasks routing, creation, completion, deletion
+│   │   ├── users/            # Team member list database routing
+│   │   ├── utils/            # DB clients, auth helpers, SMTP email engines
+│   │   └── __init__.py       # Flask app initializer and CORS rules
+│   ├── db/                   # Database Initializers
+│   │   ├── schema.sql        # PostgreSQL table and index definitions
+│   │   └── setup.py          # Connection test script for database initialization
+│   ├── run.py                # Local Flask server entry point (port 5000)
+│   ├── requirements.txt      # Python packages list
+│   └── .env                  # Backend credentials configuration
 │   
 ├── frontend/                 # Next.js Frontend App
 │   ├── src/
@@ -78,9 +81,10 @@ Follow these steps to run the application locally on your computer.
 
 ### Step 1: Database Initialization
 Before starting the servers, initialize your PostgreSQL database tables:
-1. Ensure your database string is defined in `.env` in the root folder.
-2. In your terminal, run the database setup script:
+1. Ensure your database string is defined in `.env` in the `backend/` folder.
+2. Navigate to the `backend/` directory in your terminal and run the database setup script:
    ```bash
+   cd backend
    python db/setup.py
    ```
    *(This creates the `users` and `tasks` tables and configures optimal database indexes).*
@@ -90,21 +94,25 @@ Before starting the servers, initialize your PostgreSQL database tables:
 ### Step 2: Running the Backend (Flask API)
 
 1. Make sure you have python installed.
-2. Open a terminal in the project root directory and set up a virtual environment:
+2. Open a terminal and navigate to the `backend/` directory:
+   ```bash
+   cd backend
+   ```
+3. Set up a virtual environment:
    ```bash
    python -m venv venv
    source venv/Scripts/activate  # On Windows: venv\Scripts\activate
    ```
-3. Install the required Python packages:
+4. Install the required Python packages:
    ```bash
    pip install -r requirements.txt
    ```
-4. Copy the environment template and set your credentials:
+5. Copy the environment template and set your credentials:
    ```bash
    cp .env.example .env
    ```
    Fill in your actual `DATABASE_URL`, Google Client ID, JWT Secret, and Gmail SMTP login codes.
-5. Start the backend API server:
+6. Start the backend API server:
    ```bash
    python run.py
    ```
