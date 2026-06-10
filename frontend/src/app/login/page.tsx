@@ -94,7 +94,7 @@ export default function LoginPage() {
                     <span className="text-sm font-medium text-slate-600">Verifying credentials with server...</span>
                   </div>
                 ) : (
-                  <div className="w-full flex justify-center py-2">
+                  <div className="w-full flex flex-col items-center py-2">
                     <GoogleLogin
                       onSuccess={handleGoogleSuccess}
                       onError={handleGoogleError}
@@ -104,6 +104,9 @@ export default function LoginPage() {
                       text="continue_with"
                       width="100%"
                     />
+                    <p className="mt-3 text-[11px] text-center text-slate-400 leading-normal max-w-[280px]">
+                      If the login window doesn&apos;t open, please check for a blocked pop-up in your address bar or disable ad-blockers / Brave Shield.
+                    </p>
                   </div>
                 )}
               </div>
