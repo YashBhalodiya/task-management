@@ -81,7 +81,10 @@ def create_task():
 @tasks_bp.route("/", methods=["GET"])
 @login_required
 def get_all_tasks():
-    rows = query_all(f"{TASK_SELECT_QUERY} ORDER BY t.created_at DESC")
+    rows = query_all(
+        f"{TASK_SELECT_QUERY} WHERE t.created_by = %s OR t.assigned_to = %s ORDER BY t.created_at DESC",
+        (g.current_user["id"], g.current_user["id"])
+    )
     tasks = [format_task(row) for row in rows]
     return jsonify(tasks), 200
 
@@ -91,6 +94,10 @@ def get_task_by_id(task_id):
     row = query_one(f"{TASK_SELECT_QUERY} WHERE t.id = %s", (task_id,))
     if not row:
         return jsonify({"error": "Task not found"}), 404
+        
+    if row["creator_id"] != g.current_user["id"] and row["assignee_id"] != g.current_user["id"]:
+        return jsonify({"error": "You are not authorized to view this task"}), 403
+        
     return jsonify(format_task(row)), 200
 
 @tasks_bp.route("/<int:task_id>/status", methods=["PUT"])

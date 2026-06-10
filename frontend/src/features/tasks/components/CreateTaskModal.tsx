@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers } from '@/services/users';
 import { createTask, CreateTaskInput } from '@/services/tasks';
+import { Task } from '@/types';
 import { X, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
@@ -58,8 +59,13 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
   // Mutation to create a task
   const mutation = useMutation({
     mutationFn: createTask,
-    onSuccess: () => {
-      // Invalidate tasks query to trigger fresh list reload
+    onSuccess: (newTask) => {
+      // Prepend the new task to the cache immediately
+      queryClient.setQueryData<Task[]>(['tasks'], (oldTasks) => {
+        if (!oldTasks) return [newTask];
+        return [newTask, ...oldTasks];
+      });
+      // Invalidate tasks query to keep backend & frontend synced
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       onSuccess?.();
       onClose();

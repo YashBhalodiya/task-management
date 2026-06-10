@@ -52,31 +52,75 @@ export default function DashboardPage() {
   // Task Status Toggle Mutation
   const toggleStatusMutation = useMutation({
     mutationFn: updateTaskStatus,
+    onMutate: async ({ taskId, status }) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
+
+      // Snapshot previous tasks
+      const previousTasks = queryClient.getQueryData<Task[]>(['tasks']);
+
+      // Optimistically update the task list status
+      queryClient.setQueryData<Task[]>(['tasks'], (oldTasks) => {
+        if (!oldTasks) return [];
+        return oldTasks.map((t) => (t.id === taskId ? { ...t, status } : t));
+      });
+
+      return { previousTasks };
+    },
     onSuccess: (updatedTask) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       const verb = updatedTask.status === 'completed' ? 'completed' : 'reopened';
       showNotification('success', `Task marked as ${verb}!`);
     },
-    onError: (err) => {
+    onError: (err, variables, context) => {
+      // Rollback to previous state on error
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks'], context.previousTasks);
+      }
       const message = axios.isAxiosError(err) && err.response?.data?.error
         ? err.response.data.error
         : 'Failed to update task status.';
       showNotification('error', message);
+    },
+    onSettled: () => {
+      // Refetch to sync state with server
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 
   // Task Delete Mutation
   const deleteTaskMutation = useMutation({
     mutationFn: deleteTask,
+    onMutate: async (taskId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
+
+      // Snapshot previous tasks
+      const previousTasks = queryClient.getQueryData<Task[]>(['tasks']);
+
+      // Optimistically remove the task from local state
+      queryClient.setQueryData<Task[]>(['tasks'], (oldTasks) => {
+        if (!oldTasks) return [];
+        return oldTasks.filter((t) => t.id !== taskId);
+      });
+
+      return { previousTasks };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       showNotification('success', 'Task deleted successfully.');
     },
-    onError: (err) => {
+    onError: (err, taskId, context) => {
+      // Rollback to previous state on error
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks'], context.previousTasks);
+      }
       const message = axios.isAxiosError(err) && err.response?.data?.error
         ? err.response.data.error
         : 'Failed to delete task.';
       showNotification('error', message);
+    },
+    onSettled: () => {
+      // Refetch to sync state with server
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 
