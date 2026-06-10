@@ -2,7 +2,6 @@ import axios from 'axios';
 
 let API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// Automatically append '/api' if NEXT_PUBLIC_API_URL is configured without it.
 if (API_URL && !API_URL.endsWith('/api') && !API_URL.endsWith('/api/')) {
   API_URL = `${API_URL.replace(/\/$/, '')}/api`;
 }
@@ -14,7 +13,6 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to attach JWT token
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
@@ -30,7 +28,6 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
