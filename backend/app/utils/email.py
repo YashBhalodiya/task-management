@@ -2,6 +2,18 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from threading import Thread
+import datetime
+import traceback
+
+def log_email_status(message):
+    log_file_path = "email_debug.log"
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_line = f"[{timestamp}] {message}\n"
+    try:
+        with open(log_file_path, "a") as f:
+            f.write(log_line)
+    except Exception as e:
+        print(f"Failed to write to email_debug.log: {e}")
 
 def send_email_async(app, recipient, subject, body):
     with app.app_context():
@@ -11,8 +23,13 @@ def send_email_async(app, recipient, subject, body):
         smtp_pass = app.config.get("SMTP_PASSWORD")
         email_from = app.config.get("EMAIL_FROM")
 
+        log_email_status(f"Starting email send to {recipient} with subject '{subject}'...")
+
         if not all([smtp_host, smtp_port, smtp_user, smtp_pass, email_from]):
-            print("Email configuration is incomplete. Skipping email.")
+            log_email_status(
+                f"ERROR: Email configuration is incomplete. Missing fields: "
+                f"host={bool(smtp_host)}, port={bool(smtp_port)}, user={bool(smtp_user)}, pass={bool(smtp_pass)}, from={bool(email_from)}"
+            )
             return
 
         try:
@@ -22,12 +39,18 @@ def send_email_async(app, recipient, subject, body):
             msg["Subject"] = subject
             msg.attach(MIMEText(body, "html"))
 
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
+            log_email_status(f"Connecting to SMTP server {smtp_host}:{smtp_port}...")
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+                log_email_status("Starting TLS...")
                 server.starttls()
+                log_email_status("Logging in...")
                 server.login(smtp_user, smtp_pass)
+                log_email_status("Sending message...")
                 server.send_message(msg)
+                log_email_status(f"SUCCESS: Email sent successfully to {recipient}!")
         except Exception as e:
-            print(f"SMTP error while sending to {recipient}: {e}")
+            err_msg = f"SMTP error while sending to {recipient}: {type(e).__name__} - {e}\n{traceback.format_exc()}"
+            log_email_status(err_msg)
 
 def send_email(recipient, subject, body):
     from flask import current_app
