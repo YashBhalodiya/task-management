@@ -1,4 +1,5 @@
 'use client';
+'use no memo';
 
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
